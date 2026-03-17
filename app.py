@@ -35,7 +35,7 @@ def build_model():
 @st.cache_resource
 def load_model():
     if not os.path.exists(WEIGHTS_PATH):
-        file_id = "PUT_YOUR_NEW_FILE_ID_HERE"
+         file_id = "1uTKYwpe6Ruwx7pw5Nqbv6BgLvnkrrNxL"
         url = f"https://drive.google.com/uc?export=download&id={file_id}"
         gdown.download(url, WEIGHTS_PATH, quiet=False)
 
