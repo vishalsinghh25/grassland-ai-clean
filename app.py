@@ -5,34 +5,40 @@ from PIL import Image
 import gdown
 import os
 
+st.set_page_config(page_title="Grassland AI", layout="centered")
+
 st.title("🌿 Grassland Health Monitoring AI")
 
-MODEL_PATH = "grassland_model.h5"
+MODEL_PATH = "final_model.h5"
 
-# Load model (download once)
+# Load model safely
 @st.cache_resource
 def load_model():
     if not os.path.exists(MODEL_PATH):
-        file_id = "1iC_p6UJNGMoLixlHVY7L0KyQzNRWemll"
+        file_id = "1uTKYwpe6Ruwx7pw5Nqbv6BgLvnkrrNxL"
         url = f"https://drive.google.com/uc?export=download&id={file_id}"
         gdown.download(url, MODEL_PATH, quiet=False)
 
-    model = tf.keras.models.load_model(MODEL_PATH)
+    model = tf.keras.models.load_model(
+        MODEL_PATH,
+        compile=False,
+        safe_mode=False
+    )
     return model
 
 model = load_model()
 
-# Class names (must match training)
+# Classes
 class_names = ["bare", "degraded", "healthy"]
 
-# Info text
+# Info messages
 info = {
     "healthy": "🌿 Healthy grassland: Good vegetation and biodiversity.",
     "degraded": "⚠️ Degraded grassland: Overgrazing or soil damage.",
     "bare": "🟤 Bare land: No vegetation, risk of desertification."
 }
 
-# Upload image
+# Upload
 uploaded_file = st.file_uploader("📤 Upload Grassland Image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
@@ -52,8 +58,4 @@ if uploaded_file is not None:
     # Output
     st.success(f"✅ Prediction: {predicted_class.upper()}")
     st.write(f"📊 Confidence: {confidence:.2f}")
-    st.info(info[predicted_class])
-    # Output
-    st.success(f"Prediction: {predicted_class}")
-    st.write(f"Confidence: {confidence:.2f}")
     st.info(info[predicted_class])
