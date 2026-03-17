@@ -11,7 +11,7 @@ st.title("🌿 Grassland Health Monitoring AI")
 MODEL_PATH = "grassland_health_model.h5"
 
 if not os.path.exists(MODEL_PATH):
-    url = "PASTE_YOUR_DRIVE_LINK_HERE"
+    url = "https://drive.google.com/uc?id=1Y9c33KwHsFs5EMGOlxL0maLbfOEM3Qmi"
     gdown.download(url, MODEL_PATH, quiet=False)
 
 # Load model
