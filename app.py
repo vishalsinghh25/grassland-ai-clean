@@ -7,15 +7,19 @@ import os
 
 st.title("🌿 Grassland Health Monitoring AI")
 
-# Download model from Google Drive
 MODEL_PATH = "grassland_health_model.h5"
 
-if not os.path.exists(MODEL_PATH):
-    url = "https://drive.google.com/uc?id=1Y9c33KwHsFs5EMGOlxL0maLbfOEM3Qmi"
-    gdown.download(url, MODEL_PATH, quiet=False)
+# Download model only once
+@st.cache_resource
+def load_model():
+    if not os.path.exists(MODEL_PATH):
+        url = "https://drive.google.com/uc?id=1Y9c33KwHsFs5EMGOlxL0maLbfOEM3Qmi"
+        gdown.download(url, MODEL_PATH, quiet=False)
 
-# Load model
-model = tf.keras.models.load_model(MODEL_PATH)
+    model = tf.keras.models.load_model(MODEL_PATH)
+    return model
+
+model = load_model()
 
 class_names = ["bare", "degraded", "healthy"]
 
@@ -39,6 +43,10 @@ if uploaded_file is not None:
 
     predicted_class = class_names[np.argmax(prediction)]
     confidence = np.max(prediction)
+
+    st.success(f"Prediction: {predicted_class}")
+    st.write(f"Confidence: {confidence:.2f}")
+    st.info(info[predicted_class])
 
     st.success(f"Prediction: {predicted_class}")
     st.write(f"Confidence: {confidence:.2f}")
