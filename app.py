@@ -6,91 +6,94 @@ import gdown
 import os
 
 # 1. Page Configuration
-st.set_page_config(
-    page_title="Grassland Health AI",
-    page_icon="🌿",
-    layout="centered"
-)
+st.set_page_config(page_title="Grassland Health AI", page_icon="🌿")
 
 # 2. Constants
-MODEL_PATH = "grassland_model.h5"
-# File ID from your Google Drive link
+WEIGHTS_PATH = "grassland_model.h5"
 GDRIVE_FILE_ID = "1iC_p6UJNGMoLixlHVY7L0KyQzNRWemll"
 
-# 3. Model Loading Function
-@st.cache_resource
-def load_grassland_model():
-    """Downloads model from Drive if not present and loads it."""
-    if not os.path.exists(MODEL_PATH):
-        url = f"https://drive.google.com/uc?export=download&id={GDRIVE_FILE_ID}"
-        with st.spinner("Downloading AI model from Google Drive... This may take a minute."):
-            try:
-                gdown.download(url, MODEL_PATH, quiet=False)
-            except Exception as e:
-                st.error(f"Error downloading model: {e}")
-                return None
+# 3. Manually Define Architecture 
+# This must match EXACTLY how you trained the model
+def build_model_architecture():
+    model = tf.keras.Sequential([
+        # Using a standard Input layer that works across versions
+        tf.keras.layers.Input(shape=(224, 224, 3)),
+        
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(),
+        
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(),
+        
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(),
+        
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.5),
+        
+        # 3 classes: bare, degraded, healthy
+        tf.keras.layers.Dense(3, activation='softmax')
+    ])
+    return model
 
+# 4. Load Function
+@st.cache_resource
+def load_grassland_ai():
+    if not os.path.exists(WEIGHTS_PATH):
+        url = f"https://drive.google.com/uc?export=download&id={GDRIVE_FILE_ID}"
+        with st.spinner("Downloading model weights..."):
+            gdown.download(url, WEIGHTS_PATH, quiet=False)
+    
+    # Create the skeleton
+    model = build_model_architecture()
+    
     try:
-        # Load the full .h5 model
-        model = tf.keras.models.load_model(MODEL_PATH)
+        # Load weights only (skips the problematic metadata/config)
+        model.load_weights(WEIGHTS_PATH)
         return model
     except Exception as e:
-        st.error(f"Error loading model: {e}")
-        return None
+        st.error(f"Error loading weights: {e}")
+        # Fallback: Try loading as full model if weights-only fails
+        try:
+            return tf.keras.models.load_model(WEIGHTS_PATH)
+        except:
+            return None
 
-# 4. App Interface
+# 5. UI Logic
 st.title("🌿 Grassland Health Monitoring AI")
-st.markdown("""
-Upload a photo of grassland to analyze its health status. 
-This AI classifies images into **Healthy**, **Degraded**, or **Bare** land.
-""")
 
-# Load the model
-model = load_grassland_model()
-
-# Define classes and info
+model = load_grassland_ai()
 class_names = ["bare", "degraded", "healthy"]
-info_cards = {
-    "healthy": "🟢 **Healthy**: Good vegetation cover and biodiversity.",
-    "degraded": "🟡 **Degraded**: Visible signs of overgrazing or soil erosion.",
-    "bare": "🔴 **Bare**: Little to no vegetation. High risk of desertification."
-}
 
-# 5. Image Upload & Prediction
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Upload a grassland photo", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None and model is not None:
-    # Display the image
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_container_width=True)
     
-    # Preprocessing
-    with st.spinner("AI is analyzing the land..."):
-        # Match the input size (224x224)
+    with st.spinner("Analyzing..."):
+        # Preprocess
         img_resized = image.resize((224, 224))
         img_array = np.array(img_resized) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
-
+        
         # Predict
         predictions = model.predict(img_array, verbose=0)
-        score = tf.nn.softmax(predictions[0]) # Use softmax if model output is logits
-        
-        # If your model already has a softmax layer, use:
-        # result_index = np.argmax(predictions[0])
-        # confidence = np.max(predictions[0])
-        
-        result_index = np.argmax(score)
-        confidence = np.max(score)
+        result_index = np.argmax(predictions[0])
+        confidence = np.max(predictions[0])
         label = class_names[result_index]
 
-    # 6. Display Results
-    st.divider()
-    st.subheader(f"Result: {label.title()}")
-    st.progress(float(confidence))
-    st.write(f"**Confidence Level:** {confidence:.2%}")
-    st.info(info_cards[label])
+    # Output
+    st.success(f"**Prediction:** {label.upper()}")
+    st.write(f"**Confidence:** {confidence:.2%}")
+    
+    if label == "healthy":
+        st.info("🌿 The grassland appears healthy and well-vegetated.")
+    elif label == "degraded":
+        st.warning("⚠️ Signs of degradation or overgrazing detected.")
+    else:
+        st.error("🟤 Bare land detected. Risk of soil erosion/desertification.")
 
 elif model is None:
-    st.warning("Model could not be loaded. Please check the Google Drive link permissions.")
-
-st.sidebar.info("Developed with Streamlit & TensorFlow")
+    st.error("Could not initialize AI. Please check your internet connection or Google Drive link.")
